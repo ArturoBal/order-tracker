@@ -1,35 +1,38 @@
 # Order Tracker
 
-API REST construida con [NestJS](https://nestjs.com/) + [TypeORM](https://typeorm.io/) + PostgreSQL para gestionar órdenes (pedidos): alta, listado, consulta, actualización y eliminación.
+REST API built with [NestJS](https://nestjs.com/) + [TypeORM](https://typeorm.io/) + PostgreSQL to manage orders: create, list, retrieve, update and delete.
 
 ## Stack
 
 - [NestJS 11](https://nestjs.com/) (Express)
 - [TypeORM](https://typeorm.io/) + PostgreSQL 16
-- `class-validator` / `class-transformer` para validación de DTOs
+- `class-validator` / `class-transformer` for DTO validation
 - Docker / Docker Compose
 
-## Requisitos
+## Requirements
 
-- [Docker](https://www.docker.com/) + Docker Compose (recomendado), **o**
-- Node.js 24+ y una instancia de PostgreSQL local
+- [Docker](https://www.docker.com/) + Docker Compose (recommended), **or**
+- Node.js 24+ and a local PostgreSQL instance
 
-## Variables de entorno
+## Environment variables
 
-Copiar `.env.example` a `.env` y ajustar si es necesario:
+Copy `.env.example` to `.env` and adjust as needed:
 
-| Variable      | Descripción                              | Default        |
-| ------------- | ----------------------------------------- | -------------- |
-| `PORT`        | Puerto donde escucha la app                | `3000`         |
-| `DB_HOST`     | Host de PostgreSQL                         | `localhost`    |
-| `DB_PORT`     | Puerto de PostgreSQL                       | `5432`         |
-| `DB_USERNAME` | Usuario de PostgreSQL                      | `postgres`     |
-| `DB_PASSWORD` | Password de PostgreSQL                     | `postgres`     |
-| `DB_NAME`     | Nombre de la base de datos                 | `order_tracker`|
+| Variable      | Description                                                  | Default        |
+| ------------- | ------------------------------------------------------------- | -------------- |
+| `NODE_ENV`    | Runtime environment (`development` / `production`)             | `development`  |
+| `PORT`        | Port the app listens on                                         | `3000`         |
+| `CORS_ORIGIN` | Comma-separated list of allowed origins (empty = allow all)     | _(empty)_      |
+| `DB_HOST`     | PostgreSQL host                                                  | `localhost`    |
+| `DB_PORT`     | PostgreSQL port                                                  | `5432`         |
+| `DB_USERNAME` | PostgreSQL user                                                  | `postgres`     |
+| `DB_PASSWORD` | PostgreSQL password                                              | `postgres`     |
+| `DB_NAME`     | Database name                                                    | `order_tracker`|
+| `DB_SSL`      | Set to `true` when connecting to a Postgres that requires SSL    | `false`        |
 
-## Levantar el proyecto con Docker (recomendado)
+## Running with Docker (recommended)
 
-### Desarrollo (hot-reload)
+### Development (hot-reload)
 
 ```bash
 docker compose up --build
@@ -37,85 +40,101 @@ docker compose up --build
 
 - App: http://localhost:3000
 - PostgreSQL: `localhost:5432`
-- El código fuente se monta como volumen y `tsc --watch` recompila automáticamente al guardar cambios.
-- Las tablas se sincronizan automáticamente (`synchronize: true` fuera de producción), no se necesitan migraciones para desarrollar.
+- The source code is mounted as a volume and `tsc --watch` recompiles automatically on save.
+- Tables are auto-synced (`synchronize: true` outside production), so no migrations are needed for local development.
 
-Para detener los contenedores:
+To stop the containers:
 
 ```bash
 docker compose down
 ```
 
-### Producción
+### Production
 
 ```bash
 docker compose -f docker-compose.prod.yml up --build -d
 ```
 
-Usa una imagen multi-stage (`Dockerfile`, target `production`) ya compilada con `nest build`, sin montar volúmenes.
+Uses a multi-stage image (`Dockerfile`, `production` target) already compiled with `nest build`, with no volumes mounted. On startup, pending migrations run automatically (`migrationsRun: true`).
 
-## Levantar el proyecto sin Docker
+## Running without Docker
 
 ```bash
 npm install
 
-# Levantar solo la base de datos con Docker
+# Start only the database with Docker
 docker compose up postgres -d
 
-# Iniciar la app en modo watch
+# Start the app in watch mode
 npm run start:dev
 ```
 
-Asegúrate de tener un `.env` con `DB_HOST=localhost` (o los datos de tu PostgreSQL local).
+Make sure you have a `.env` with `DB_HOST=localhost` (or the credentials of your local PostgreSQL).
 
-## Modelo de datos: `Order`
+## Database migrations
 
-| Campo          | Tipo                              | Notas                          |
-| -------------- | --------------------------------- | ------------------------------ |
-| `id`           | `uuid`                            | Generado automáticamente       |
-| `customerName` | `string`                           | 3 a 40 caracteres               |
-| `item`         | `string`                           | 3 a 20 caracteres               |
-| `quantity`     | `number` (int)                    | Entre 1 y 1000                  |
-| `price`        | `number` (decimal, 2 decimales)   | Mayor a 0 y hasta 100000        |
-| `status`       | `'Pending' \| 'Paid' \| 'Shipped'` | Default `'Pending'`             |
+Schema changes for production are managed through TypeORM migrations (`src/migrations/`), using the data source defined in `src/data-source.ts`.
 
-Reglas de validación en `src/orders/dto/create-order.dto.ts`. `UpdateOrderDto` reutiliza las mismas reglas pero con todos los campos opcionales.
+```bash
+npm run migration:generate -- src/migrations/<Name>   # generate a migration from entity changes
+npm run migration:run                                   # apply pending migrations
+npm run migration:revert                                # revert the last migration
+```
+
+In production, `migrationsRun: true` applies pending migrations automatically on startup. In development, `synchronize: true` keeps the schema in sync without migrations.
+
+## Data model: `Order`
+
+| Field          | Type                              | Notes                     |
+| -------------- | ---------------------------------- | ------------------------- |
+| `id`           | `uuid`                              | Auto-generated             |
+| `customerName` | `string`                            | 3 to 40 characters          |
+| `item`         | `string`                            | 3 to 20 characters          |
+| `quantity`     | `number` (int)                     | Between 1 and 1000          |
+| `price`        | `number` (decimal, 2 decimals)     | Greater than 0, up to 100000|
+| `status`       | `'Pending' \| 'Paid' \| 'Shipped'`  | Default `'Pending'`         |
+
+Validation rules live in `src/orders/dto/create-order.dto.ts`. `UpdateOrderDto` reuses the same rules with all fields optional.
 
 ## API
 
-Endpoints disponibles bajo `/orders`:
+Endpoints available under `/orders`, plus a health check:
 
-| Método   | Ruta          | Descripción                  |
-| -------- | ------------- | ----------------------------- |
-| `POST`   | `/orders`     | Crear una orden                |
-| `GET`    | `/orders`     | Listar todas las órdenes       |
-| `GET`    | `/orders/:id` | Obtener una orden por id (uuid)|
-| `PATCH`  | `/orders/:id` | Actualizar una orden            |
-| `DELETE` | `/orders/:id` | Eliminar una orden              |
+| Method   | Path          | Description                |
+| -------- | ------------- | --------------------------- |
+| `GET`    | `/health`     | Health check                 |
+| `POST`   | `/orders`     | Create an order               |
+| `GET`    | `/orders`     | List all orders               |
+| `GET`    | `/orders/:id` | Get an order by id (uuid)      |
+| `PATCH`  | `/orders/:id` | Update an order                |
+| `DELETE` | `/orders/:id` | Delete an order                |
 
-Contrato completo (tipos, request/response, ejemplos `fetch`, manejo de errores) en [`API.md`](./API.md).
+Full contract (types, request/response, `fetch` examples, error handling) in [`API.md`](./API.md).
 
-## Scripts disponibles
+## Available scripts
 
 ```bash
-npm run start          # iniciar la app
-npm run start:dev      # modo watch
-npm run start:prod     # ejecutar build compilado (dist/main)
-npm run build           # compilar (nest build)
+npm run start          # start the app
+npm run start:dev      # watch mode
+npm run start:prod     # run the compiled build (dist/main)
+npm run build           # compile (nest build)
 npm run lint            # eslint --fix
 npm run format           # prettier --write
 
-npm run test             # unit tests
-npm run test:e2e         # e2e tests
-npm run test:cov         # coverage
+npm run migration:generate  # generate a migration from entity changes
+npm run migration:run       # apply pending migrations
+npm run migration:revert    # revert the last migration
 ```
 
-## Estructura del proyecto
+## Project structure
 
 ```
 src/
-├── app.module.ts          # módulo raíz: ConfigModule + TypeOrmModule
-├── main.ts                 # bootstrap + ValidationPipe global
+├── app.module.ts           # root module: ConfigModule + TypeOrmModule
+├── app.controller.ts        # health check endpoint
+├── data-source.ts           # TypeORM DataSource for the CLI (migrations)
+├── main.ts                  # bootstrap + global ValidationPipe + CORS
+├── migrations/               # TypeORM migrations
 └── orders/
     ├── orders.module.ts
     ├── orders.controller.ts
