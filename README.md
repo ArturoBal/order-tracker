@@ -2,6 +2,48 @@
 
 REST API built with [NestJS](https://nestjs.com/) + [TypeORM](https://typeorm.io/) + PostgreSQL to manage orders: create, list, retrieve, update and delete.
 
+## About this project
+
+### Stack choice
+
+- **NestJS (TypeScript/Express)** — an opinionated, modular structure (controllers/services/modules) that scales well for a CRUD API and has first-class support for DI, validation pipes and ORM integration.
+- **TypeORM + PostgreSQL** — order data is relational and structured (fixed fields, enum status, decimal pricing), which is a natural fit for a relational database with typed entities. `@nestjs/typeorm` gives clean repository injection via DI.
+- **class-validator / class-transformer** — declarative DTO validation that integrates directly with Nest's `ValidationPipe`.
+- **Docker / Docker Compose** — reproducible local environment (app + Postgres) with separate dev (hot-reload) and production (multi-stage build) configurations.
+
+### Key decisions
+
+- **UUID primary keys** instead of incremental integers, to avoid exposing sequential/guessable IDs.
+- **`OrderStatus`** modeled as a TypeScript enum backed by a Postgres enum type, enforced at both the DB and validation layers.
+- **Global `ValidationPipe`** with `whitelist: true` + `forbidNonWhitelisted: true` — any unexpected field in a request body is rejected with `400`.
+- **`synchronize: true` in development** for fast iteration, but **TypeORM migrations + `migrationsRun: true` in production** for safe, reviewable schema changes.
+- **Separate compose files**: `docker-compose.yml` (dev, bind-mounted source + polling watcher for hot-reload) and `docker-compose.prod.yml` (pre-built image, no mounts).
+- **`CORS_ORIGIN` and `DB_SSL`** are configurable via env vars to support different deployment targets.
+- **`/health` endpoint** for container/orchestrator health checks.
+
+### AI tools used
+
+Used **Claude Code** (Anthropic) as a pair-programming assistant throughout, specifically for:
+
+- Scaffolding the Docker setup (multi-stage `Dockerfile`, dev/prod `docker-compose` files, `.dockerignore`) and debugging cross-platform `npm ci` and hot-reload issues.
+- Wiring up TypeORM (entity, DTOs, repository-based service, module/app configuration).
+- Generating and keeping in sync the API contract (`API.md`).
+- Live-testing endpoints against the running containers (curl) to verify behavior before documenting it.
+
+### What I'd improve with more time
+
+- Unit tests for `OrdersService` and e2e tests for `OrdersController`.
+- Pagination, filtering and sorting on `GET /orders`.
+- `@nestjs/swagger` for interactive OpenAPI docs.
+- Authentication/authorization.
+- `createdAt` / `updatedAt` audit columns and soft deletes.
+- Structured logging and basic observability (request IDs, metrics).
+- CI pipeline running lint/build/tests on every PR.
+
+#
+
+# Project setup and instructions
+
 ## Stack
 
 - [NestJS 11](https://nestjs.com/) (Express)
