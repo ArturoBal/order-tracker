@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { DataSource } from 'typeorm';
 import { Order } from './orders/entities/order.entity';
+import { User } from './users/entities/user.entity';
 
 export default new DataSource({
   type: 'postgres',
@@ -9,7 +10,7 @@ export default new DataSource({
   username: process.env.DB_USERNAME ?? 'postgres',
   password: process.env.DB_PASSWORD ?? 'postgres',
   database: process.env.DB_NAME ?? 'order_tracker',
-  entities: [Order],
+  entities: [Order, User],
   migrations: ['src/migrations/*.ts'],
   ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
 });

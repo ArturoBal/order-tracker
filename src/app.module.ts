@@ -5,6 +5,10 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { OrdersModule } from './orders/orders.module';
 import { Order } from './orders/entities/order.entity';
+import { User } from './users/entities/user.entity';
+import { AuthModule } from './auth/auth.module';
+import { UsersModule } from './users/users.module';
+import { CommonModule } from './common/common.module';
 
 @Module({
   imports: [
@@ -18,7 +22,7 @@ import { Order } from './orders/entities/order.entity';
         username: config.get<string>('DB_USERNAME', 'postgres'),
         password: config.get<string>('DB_PASSWORD', 'postgres'),
         database: config.get<string>('DB_NAME', 'order_tracker'),
-        entities: [Order],
+        entities: [Order, User],
         migrations: [join(__dirname, 'migrations', '*{.ts,.js}')],
         synchronize: config.get<string>('NODE_ENV') !== 'production',
         migrationsRun: config.get<string>('NODE_ENV') === 'production',
@@ -29,8 +33,11 @@ import { Order } from './orders/entities/order.entity';
       }),
     }),
     OrdersModule,
+    AuthModule,
+    UsersModule,
+    CommonModule,
   ],
   controllers: [AppController],
   providers: [],
 })
-export class AppModule {}
+export class AppModule { }

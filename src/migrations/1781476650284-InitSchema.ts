@@ -5,11 +5,14 @@ export class InitSchema1781476650284 implements MigrationInterface {
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`);
-    await queryRunner.query(
-      `CREATE TYPE "order_status_enum" AS ENUM ('Pending', 'Paid', 'Shipped')`,
-    );
     await queryRunner.query(`
-      CREATE TABLE "order" (
+      DO $$ BEGIN
+        CREATE TYPE "order_status_enum" AS ENUM ('Pending', 'Paid', 'Shipped');
+      EXCEPTION WHEN duplicate_object THEN null;
+      END $$
+    `);
+    await queryRunner.query(`
+      CREATE TABLE IF NOT EXISTS "order" (
         "customerName" character varying NOT NULL,
         "item" character varying NOT NULL,
         "quantity" integer NOT NULL,
